@@ -8,16 +8,14 @@ import gc
 app = Flask(__name__)
 
 # Inicjalizacja modelu i tokenizera
-model_name = "distilgpt2"  # Lżejszy model
+model_name = "gpt2"  # Używamy podstawowego GPT-2 zamiast DistilGPT2
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name)
+model = AutoModelForCausalLM.from_pretrained(model_name, low_cpu_mem_usage=True)
 
 # Optymalizacja pamięci
 model.eval()
-if torch.cuda.is_available():
-    model = model.cuda()
-else:
-    model = model.cpu()
+model = model.cpu()  # Wymuszamy użycie CPU
+torch.set_num_threads(1)  # Ograniczamy liczbę wątków
 
 # Lista typowych zwrotów kibola
 KIBOL_PHRASES = [
@@ -65,21 +63,20 @@ def chat():
         user_message = request.json['message']
         
         # Przygotowanie wejścia dla modelu
-        inputs = tokenizer(user_message, return_tensors="pt", max_length=50)
-        if torch.cuda.is_available():
-            inputs = {k: v.cuda() for k, v in inputs.items()}
+        inputs = tokenizer(user_message, return_tensors="pt", max_length=30)  # Zmniejszamy maksymalną długość
         
         # Generowanie odpowiedzi
         with torch.no_grad():
             outputs = model.generate(
                 inputs["input_ids"],
-                max_length=100,
+                max_length=50,  # Zmniejszamy maksymalną długość
                 num_return_sequences=1,
                 no_repeat_ngram_size=2,
                 do_sample=True,
-                top_k=50,
-                top_p=0.95,
-                temperature=0.7
+                top_k=20,  # Zmniejszamy top_k
+                top_p=0.9,
+                temperature=0.7,
+                pad_token_id=tokenizer.eos_token_id
             )
         
         # Dekodowanie odpowiedzi
@@ -92,12 +89,11 @@ def chat():
         del outputs
         del inputs
         gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        torch.cuda.empty_cache()
         
         return jsonify({'response': modified_response})
     except Exception as e:
-        return jsonify({'response': f"KURWA, COŚ SIĘ ZEPSUŁO! BŁĄD: {str(e)}"}), 500
+        return jsonify({'response': f"KULWA, COŚ SIĘ ZEPSUŁO! BŁĄD: {str(e)}"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
