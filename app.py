@@ -68,11 +68,11 @@ def home():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    global model, tokenizer  # ✅ Na początku funkcji
+    global model, tokenizer  # jedna deklaracja global na początku funkcji
     try:
         user_message = request.json['message']
 
-        # Wczytaj model tylko jeśli nie istnieje
+        # Wczytaj model jeśli jeszcze nie wczytany
         load_model()
 
         # Tokenizacja
@@ -96,21 +96,16 @@ def chat():
         response = tokenizer.decode(outputs[0], skip_special_tokens=True)
         modified_response = add_kibol_style(response)
 
-        # Czyszczenie pamięci
+        # Czyszczenie pamięci po generowaniu (opcjonalne)
         del outputs
         del inputs
-        global model, tokenizer
-        del model
-        del tokenizer
-        model = None
-        tokenizer = None
         gc.collect()
-        torch.cuda.empty_cache()
 
         return jsonify({'response': modified_response})
-    
+
     except Exception as e:
         return jsonify({'response': f"KULWA, COŚ SIĘ ZEPSUŁO! BŁĄD: {str(e)}"}), 500
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
