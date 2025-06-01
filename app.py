@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import os
+import random
 
 app = Flask(__name__)
 
@@ -10,8 +11,41 @@ model_name = "facebook/opt-125m"  # Darmowy model językowy
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name)
 
-def replace_r_with_l(text):
-    return text.replace('r', 'l').replace('R', 'L')
+# Lista typowych zwrotów kibola
+KIBOL_PHRASES = [
+    "KURWA MAĆ!",
+    "JEBANY PIERDOLNIK!",
+    "CHUJOWA SITUACJA!",
+    "O KURWA!",
+    "JEBANA SPRAWA!",
+    "PIERDOLONE GÓWNO!",
+    "KURWA JAKA PIĘKNA!",
+    "JEBANY CUD!",
+    "CHUJOWO TO WYGLĄDA!",
+    "PIERDOLIĆ TO!",
+]
+
+def add_kibol_style(text):
+    # Zamiana R na L
+    text = text.replace('r', 'l').replace('R', 'L')
+    
+    # Dodanie losowego zwrotu kibola na początku lub końcu
+    if random.random() < 0.7:  # 70% szans na dodanie zwrotu
+        kibol_phrase = random.choice(KIBOL_PHRASES)
+        if random.random() < 0.5:
+            text = f"{kibol_phrase} {text}"
+        else:
+            text = f"{text} {kibol_phrase}"
+    
+    # Dodanie wielokrotnych wykrzykników
+    if random.random() < 0.3:  # 30% szans na dodanie wykrzykników
+        text = text.replace('.', '!!!')
+    
+    # Dodanie wielkich liter
+    if random.random() < 0.4:  # 40% szans na wielkie litery
+        text = text.upper()
+    
+    return text
 
 @app.route('/')
 def home():
@@ -35,8 +69,8 @@ def chat():
     # Dekodowanie odpowiedzi
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
     
-    # Zamiana R na L
-    modified_response = replace_r_with_l(response)
+    # Dodanie stylu kibola
+    modified_response = add_kibol_style(response)
     
     return jsonify({'response': modified_response})
 
