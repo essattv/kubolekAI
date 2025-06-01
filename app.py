@@ -14,7 +14,7 @@ tokenizer = None
 def load_model():
     global model, tokenizer
     if model is None or tokenizer is None:
-        model_name = "distilgpt2"
+        model_name = "sshleifer/tiny-gpt2"
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         model = AutoModelForCausalLM.from_pretrained(model_name)
         model.eval()
@@ -97,8 +97,8 @@ def chat():
         return jsonify({'response': modified_response})
 
     except Exception as e:
+        traceback.print_exc()
         return jsonify({'response': f"KULWA, COŚ SIĘ ZEPSUŁO! BŁĄD: {str(e)}"}), 500
-
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
