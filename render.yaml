@@ -3,12 +3,10 @@ services:
     name: chatai-r-to-l
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    startCommand: gunicorn app:app --workers 1 --threads 1
     envVars:
       - key: PYTHON_VERSION
         value: 3.9.0
       - key: FLASK_ENV
         value: production
-    plan: free
-    resources:
-      memory: 1GB 
+    plan: free 
