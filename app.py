@@ -68,6 +68,7 @@ def home():
 
 @app.route('/chat', methods=['POST'])
 def chat():
+    global model, tokenizer  # ✅ Na początku funkcji
     try:
         user_message = request.json['message']
 
