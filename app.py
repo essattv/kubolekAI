@@ -13,16 +13,16 @@ model = AutoModelForCausalLM.from_pretrained(model_name)
 
 # Lista typowych zwrotów kibola
 KIBOL_PHRASES = [
-    "KURWA MAĆ!",
-    "JEBANY PIERDOLNIK!",
-    "CHUJOWA SITUACJA!",
-    "O KURWA!",
-    "JEBANA SPRAWA!",
-    "PIERDOLONE GÓWNO!",
-    "KURWA JAKA PIĘKNA!",
+    "KULWA MAĆ!",
+    "JEBANY PIELDOLNIK!",
+    "CHUJOWA SYTUACJA!",
+    "O KULWA!",
+    "JEBANA SPLAWA!",
+    "PIELDOLONE GÓWNO!",
+    "KULWA JAKA PIĘKNA!",
     "JEBANY CUD!",
     "CHUJOWO TO WYGLĄDA!",
-    "PIERDOLIĆ TO!",
+    "PIELDOLIĆ TO!",
 ]
 
 def add_kibol_style(text):
