@@ -7,15 +7,24 @@ import gc
 
 app = Flask(__name__)
 
-# Inicjalizacja modelu i tokenizera
-model_name = "gpt2"  # Używamy podstawowego GPT-2 zamiast DistilGPT2
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name, low_cpu_mem_usage=True)
+# Zmienna globalna do modelu i tokenizera
+model = None
+tokenizer = None
 
-# Optymalizacja pamięci
-model.eval()
-model = model.cpu()  # Wymuszamy użycie CPU
-torch.set_num_threads(1)  # Ograniczamy liczbę wątków
+def load_model():
+    global model, tokenizer
+    if model is None or tokenizer is None:
+        model_name = "distilgpt2"  # Lżejszy model
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            low_cpu_mem_usage=True,
+            torch_dtype=torch.float32,  # Możesz zmienić na float16 jeśli działa
+            device_map='cpu'
+        )
+        model.eval()
+        torch.set_num_threads(1)
+        torch.set_num_interop_threads(1)
 
 # Lista typowych zwrotów kibola
 KIBOL_PHRASES = [
@@ -36,19 +45,19 @@ def add_kibol_style(text):
     text = text.replace('r', 'l').replace('R', 'L')
     
     # Dodanie losowego zwrotu kibola na początku lub końcu
-    if random.random() < 0.7:  # 70% szans na dodanie zwrotu
+    if random.random() < 0.7:
         kibol_phrase = random.choice(KIBOL_PHRASES)
         if random.random() < 0.5:
             text = f"{kibol_phrase} {text}"
         else:
             text = f"{text} {kibol_phrase}"
     
-    # Dodanie wielokrotnych wykrzykników
-    if random.random() < 0.3:  # 30% szans na dodanie wykrzykników
+    # Dodanie wykrzykników
+    if random.random() < 0.3:
         text = text.replace('.', '!!!')
     
-    # Dodanie wielkich liter
-    if random.random() < 0.4:  # 40% szans na wielkie litery
+    # Wielkie litery
+    if random.random() < 0.4:
         text = text.upper()
     
     return text
@@ -61,40 +70,47 @@ def home():
 def chat():
     try:
         user_message = request.json['message']
-        
-        # Przygotowanie wejścia dla modelu
-        inputs = tokenizer(user_message, return_tensors="pt", max_length=30)  # Zmniejszamy maksymalną długość
-        
+
+        # Wczytaj model tylko jeśli nie istnieje
+        load_model()
+
+        # Tokenizacja
+        inputs = tokenizer(user_message, return_tensors="pt", max_length=20)
+
         # Generowanie odpowiedzi
         with torch.no_grad():
             outputs = model.generate(
                 inputs["input_ids"],
-                max_length=50,  # Zmniejszamy maksymalną długość
+                max_length=30,
                 num_return_sequences=1,
                 no_repeat_ngram_size=2,
                 do_sample=True,
-                top_k=20,  # Zmniejszamy top_k
+                top_k=10,
                 top_p=0.9,
                 temperature=0.7,
-                pad_token_id=tokenizer.eos_token_id
+                pad_token_id=tokenizer.eos_token_id,
+                max_new_tokens=20
             )
-        
-        # Dekodowanie odpowiedzi
+
         response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-        
-        # Dodanie stylu kibola
         modified_response = add_kibol_style(response)
-        
+
         # Czyszczenie pamięci
         del outputs
         del inputs
+        global model, tokenizer
+        del model
+        del tokenizer
+        model = None
+        tokenizer = None
         gc.collect()
         torch.cuda.empty_cache()
-        
+
         return jsonify({'response': modified_response})
+    
     except Exception as e:
         return jsonify({'response': f"KULWA, COŚ SIĘ ZEPSUŁO! BŁĄD: {str(e)}"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port) 
+    app.run(host='0.0.0.0', port=port)
