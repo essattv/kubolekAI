@@ -3,13 +3,21 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 import torch
 import os
 import random
+import gc
 
 app = Flask(__name__)
 
 # Inicjalizacja modelu i tokenizera
-model_name = "facebook/opt-125m"  # Darmowy model językowy
+model_name = "distilgpt2"  # Lżejszy model
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForCausalLM.from_pretrained(model_name)
+
+# Optymalizacja pamięci
+model.eval()
+if torch.cuda.is_available():
+    model = model.cuda()
+else:
+    model = model.cpu()
 
 # Lista typowych zwrotów kibola
 KIBOL_PHRASES = [
@@ -53,26 +61,43 @@ def home():
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    user_message = request.json['message']
-    
-    # Przygotowanie wejścia dla modelu
-    inputs = tokenizer(user_message, return_tensors="pt", max_length=100)
-    
-    # Generowanie odpowiedzi
-    outputs = model.generate(
-        inputs["input_ids"],
-        max_length=150,
-        num_return_sequences=1,
-        no_repeat_ngram_size=2
-    )
-    
-    # Dekodowanie odpowiedzi
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    
-    # Dodanie stylu kibola
-    modified_response = add_kibol_style(response)
-    
-    return jsonify({'response': modified_response})
+    try:
+        user_message = request.json['message']
+        
+        # Przygotowanie wejścia dla modelu
+        inputs = tokenizer(user_message, return_tensors="pt", max_length=50)
+        if torch.cuda.is_available():
+            inputs = {k: v.cuda() for k, v in inputs.items()}
+        
+        # Generowanie odpowiedzi
+        with torch.no_grad():
+            outputs = model.generate(
+                inputs["input_ids"],
+                max_length=100,
+                num_return_sequences=1,
+                no_repeat_ngram_size=2,
+                do_sample=True,
+                top_k=50,
+                top_p=0.95,
+                temperature=0.7
+            )
+        
+        # Dekodowanie odpowiedzi
+        response = tokenizer.decode(outputs[0], skip_special_tokens=True)
+        
+        # Dodanie stylu kibola
+        modified_response = add_kibol_style(response)
+        
+        # Czyszczenie pamięci
+        del outputs
+        del inputs
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        
+        return jsonify({'response': modified_response})
+    except Exception as e:
+        return jsonify({'response': f"KURWA, COŚ SIĘ ZEPSUŁO! BŁĄD: {str(e)}"}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
