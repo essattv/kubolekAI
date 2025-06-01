@@ -14,17 +14,10 @@ tokenizer = None
 def load_model():
     global model, tokenizer
     if model is None or tokenizer is None:
-        model_name = "distilgpt2"  # Lżejszy model
+        model_name = "distilgpt2"
         tokenizer = AutoTokenizer.from_pretrained(model_name)
-        model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            low_cpu_mem_usage=True,
-            torch_dtype=torch.float32,  # Możesz zmienić na float16 jeśli działa
-            device_map='cpu'
-        )
+        model = AutoModelForCausalLM.from_pretrained(model_name)
         model.eval()
-        torch.set_num_threads(1)
-        torch.set_num_interop_threads(1)
 
 # Lista typowych zwrotów kibola
 KIBOL_PHRASES = [
